@@ -26,33 +26,45 @@ function writeData(data) {
     fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2));
 }
 
-// Эмулируем методы SQLite, чтобы не переписывать server.js!
 const db = {
-    // Метод INSERT (Регистрация)
+    // Универсальный метод для добавления (INSERT) пользователей и сообщений
     run: function(query, params, callback) {
         const data = readData();
         
-        // Если это регистрация пользователя
+        // 1. Регистрация пользователя
         if (query.includes('INSERT INTO users')) {
             const [username, passwordHash, targetLang] = params;
-            
-            // Проверка на UNIQUE (уникальный ник)
             const exists = data.users.some(u => u.username === username);
             if (exists) {
                 return callback({ message: 'UNIQUE constraint failed' });
             }
-            
             const newUser = {
                 id: data.users.length + 1,
                 username,
                 password_hash: passwordHash,
                 target_lang: targetLang
             };
-            
             data.users.push(newUser);
             writeData(data);
             return callback(null);
         }
+
+        // 2. Сохранение сообщения
+        if (query.includes('INSERT INTO messages')) {
+            const [author, text, timestamp] = params;
+            const newMessage = { author, text, timestamp };
+            
+            data.messages.push(newMessage);
+            
+            // Жестко держим лимит в 1000 сообщений, чтобы файл не раздувался
+            if (data.messages.length > 1000) {
+                data.messages = data.messages.slice(-1000); 
+            }
+            
+            writeData(data);
+            return callback(null);
+        }
+
         callback(null);
     },
 
@@ -65,6 +77,16 @@ const db = {
             return callback(null, user || null);
         }
         callback(null, null);
+    },
+
+    // Новый метод для выгрузки всей истории сообщений
+    all: function(query, params, callback) {
+        const data = readData();
+        if (query.includes('FROM messages')) {
+            // Возвращаем копию массива сообщений
+            return callback(null, data.messages || []);
+        }
+        callback(null, []);
     }
 };
 

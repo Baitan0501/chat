@@ -6,7 +6,6 @@ const bcrypt = require('bcrypt');
 const session = require('express-session');
 const translate = require('google-translate-api-x');
 
-// Подключаем нашу неубиваемую текстовую базу данных
 const db = require('./database'); 
 
 const app = express();
@@ -89,7 +88,7 @@ app.get('/logout', (req, res) => {
     });
 });
 
-// --- ОПТИМИЗИРОВАННЫЙ ЧАТ (ОДНО ОКНО) ---
+// --- ЧАТ С СОХРАНЕНИЕМ ИСТОРИИ ---
 
 const onlineUsers = {};
 
@@ -102,6 +101,44 @@ io.on('connection', (socket) => {
         };
         socket.join(`lang_${data.targetLang}`);
         console.log(`[Чат] ${data.username} вошел. Язык: ${data.targetLang.toUpperCase()}`);
+        
+        // Отправляем новому пользователю историю последних сообщений
+        db.all("SELECT * FROM messages", [], async (err, rows) => {
+            if (err || !rows) return;
+            
+            for (let historyMsg of rows) {
+                let textToSend = historyMsg.text;
+                
+                // Переводим историю под язык зашедшего юзера, если автор писал на другом языке
+                // (Для простоты храним в БД оригинал, а при загрузке истории переводим на лету)
+                // Но чтобы не спамить API, переводим только если это чужое сообщение
+                if (historyMsg.author !== data.username) {
+                    try {
+                        // Чистим теги цитат перед переводом, если они есть
+                        let cleanText = historyMsg.text;
+                        let quotePrefix = "";
+                        if (cleanText.startsWith('[QUOTE_REPLY]')) {
+                            const endTag = cleanText.indexOf('[/QUOTE_REPLY]');
+                            if (endTag !== -1) {
+                                quotePrefix = cleanText.substring(0, endTag + 14);
+                                cleanText = cleanText.substring(endTag + 14);
+                            }
+                        }
+                        
+                        const res = await translate(cleanText, { to: data.targetLang });
+                        textToSend = quotePrefix + res.text;
+                    } catch (e) {
+                        // Если перевод упал — отдаем как есть
+                    }
+                }
+                
+                socket.emit('broadcast_message', {
+                    author: historyMsg.author,
+                    text: textToSend
+                });
+            }
+        });
+
         updateOnlineUsersList();
     });
 
@@ -109,27 +146,42 @@ io.on('connection', (socket) => {
         const currentUser = onlineUsers[socket.id];
         if (!currentUser) return;
 
-        // Собираем только те языки, которые реально нужны сидящим в чате людям
+        // Сохраняем оригинальное сообщение в нашу JSON базу данных
+        db.run("INSERT INTO messages (author, text, timestamp) VALUES (?, ?, ?)", [
+            currentUser.username,
+            msgText,
+            Date.now()
+        ], (err) => {
+            if (err) console.error("Ошибка сохранения сообщения:", err);
+        });
+
         const activeLanguages = new Set(Object.values(onlineUsers).map(u => u.targetLang));
 
         for (let lang of activeLanguages) {
             try {
                 let translatedText = msgText;
                 
-                // Переводим, только если язык получателя не совпадает с языком отправителя
                 if (lang !== currentUser.targetLang) {
-                    const res = await translate(msgText, { to: lang });
-                    translatedText = res.text;
+                    // Если сообщение содержит цитату, переводим только основной текст ответа
+                    let cleanText = msgText;
+                    let quotePrefix = "";
+                    if (msgText.startsWith('[QUOTE_REPLY]')) {
+                        const endTag = msgText.indexOf('[/QUOTE_REPLY]');
+                        if (endTag !== -1) {
+                            quotePrefix = msgText.substring(0, endTag + 14);
+                            cleanText = msgText.substring(endTag + 14);
+                        }
+                    }
+                    
+                    const res = await translate(cleanText, { to: lang });
+                    translatedText = quotePrefix + res.text;
                 }
 
-                // Шлем готовый текст сразу всей языковой комнате
                 io.to(`lang_${lang}`).emit('broadcast_message', {
                     author: currentUser.username,
                     text: translatedText
                 });
             } catch (err) {
-                console.error(`Ошибка перевода на [${lang}]:`, err);
-                // В случае сбоя API отправляем оригинал
                 io.to(`lang_${lang}`).emit('broadcast_message', {
                     author: currentUser.username,
                     text: msgText
@@ -140,7 +192,6 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         if (onlineUsers[socket.id]) {
-            console.log(`[Чат] ${onlineUsers[socket.id].username} вышел.`);
             delete onlineUsers[socket.id];
             updateOnlineUsersList();
         }
@@ -155,7 +206,6 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000; 
 server.listen(PORT, () => {
     console.log(`\n==================================================`);
-    console.log(`  СЕРВЕР УСПЕШНО ЗАПУЩЕН!`);
-    console.log(`  Порт: ${PORT}`);
+    console.log(`  СЕРВЕР ОБНОВЛЕН И ЗАПУЩЕН!`);
     console.log(`==================================================\n`);
 });
