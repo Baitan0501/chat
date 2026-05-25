@@ -8,10 +8,9 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { display: flex; height: 100vh; background-color: #1e252b; color: #fff; }
         
-        /* Главный контейнер */
         .app-container { display: flex; width: 100%; height: 100%; overflow: hidden; }
 
-        /* Боковая панель (Список юзеров) */
+        /* Боковая панель */
         .sidebar { width: 250px; background-color: #161b22; display: flex; flex-direction: column; border-right: 1px solid #21262d; }
         .sidebar-header { padding: 15px; font-weight: bold; background-color: #0d1117; border-bottom: 1px solid #21262d; text-align: center; }
         .user-list { flex: 1; overflow-y: auto; padding: 10px; }
@@ -22,17 +21,35 @@
 
         /* Зона чата */
         .chat-area { flex: 1; display: flex; flex-direction: column; background-color: #0d1117; }
-        .chat-header { padding: 15px; background-color: #161b22; border-bottom: 1px solid #21262d; font-weight: bold; font-size: 16px; }
         
-        /* Окно сообщений */
+        /* Шапка чата со звуком */
+        .chat-header { padding: 15px; background-color: #161b22; border-bottom: 1px solid #21262d; font-weight: bold; font-size: 16px; display: flex; justify-content: space-between; align-items: center; }
+        .sound-toggle { background: #21262d; border: 1px solid #30363d; color: #fff; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 5px; user-select: none; }
+        .sound-toggle:hover { background: #30363d; }
+
+        /* Лента сообщений */
         .messages-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
         
-        /* Стили самих сообщений (как в телеге) */
-        .message { max-width: 75%; padding: 10px 14px; border-radius: 12px; font-size: 15px; line-height: 1.4; word-break: break-word; animation: fadeIn 0.2s ease; }
+        /* Стили сообщений */
+        .message { max-width: 75%; padding: 10px 14px; border-radius: 12px; font-size: 15px; line-height: 1.4; word-break: break-word; position: relative; cursor: pointer; transition: background 0.2s; }
+        .message:hover { filter: brightness(1.1); }
         .message.my { align-self: flex-end; background-color: #238636; color: white; border-bottom-right-radius: 2px; }
         .message.other { align-self: flex-start; background-color: #21262d; color: #f0f6fc; border-bottom-left-radius: 2px; }
         .message-author { font-size: 12px; color: #8b949e; margin-bottom: 4px; font-weight: bold; }
         .message.my .message-author { color: #85e89d; }
+
+        /* Блок цитаты внутри сообщения */
+        .quote-block { background: rgba(0, 0, 0, 0.2); border-left: 3px solid #58a6ff; padding: 5px 8px; margin-bottom: 6px; border-radius: 4px; font-size: 13px; color: #c9d1d9; }
+        .message.my .quote-block { border-left-color: #85e89d; color: #e6fcf0; }
+        .quote-author { font-weight: bold; font-size: 11px; margin-bottom: 2px; color: #58a6ff; }
+        .message.my .quote-author { color: #85e89d; }
+
+        /* Панель предварительного просмотра цитаты над полем ввода */
+        .reply-preview { padding: 8px 15px; background-color: #161b22; border-top: 1px solid #21262d; display: flex; justify-content: space-between; align-items: center; display: none; }
+        .reply-info { border-left: 3px solid #58a6ff; padding-left: 10px; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .reply-info-author { font-weight: bold; color: #58a6ff; font-size: 11px; }
+        .cancel-reply-btn { background: none; border: none; color: #8b949e; font-size: 18px; cursor: pointer; padding: 0 5px; }
+        .cancel-reply-btn:hover { color: #f0f6fc; }
 
         /* Форма отправки */
         .input-panel { padding: 15px; background-color: #161b22; border-top: 1px solid #21262d; display: flex; gap: 10px; }
@@ -41,9 +58,9 @@
         .input-panel button { padding: 0 20px; background-color: #238636; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px; }
         .input-panel button:hover { background-color: #2ea44f; }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        /* Подсказка для пользователя */
+        .reply-hint { font-size: 11px; color: #8b949e; text-align: center; padding: 5px; background: #0d1117; border-bottom: 1px solid #21262d; }
 
-        /* Адаптив под мобильные телефоны */
         @media (max-width: 600px) {
             .app-container { flex-direction: column; }
             .sidebar { width: 100%; height: 60px; flex-direction: row; border-right: none; border-bottom: 1px solid #21262d; }
@@ -60,15 +77,29 @@
     <div class="app-container">
         <div class="sidebar">
             <div class="sidebar-header">В СЕТИ</div>
-            <div class="user-list" id="user-list">
-                </div>
+            <div class="user-list" id="user-list"></div>
             <a href="/logout" class="logout-btn">Выйти</a>
         </div>
 
         <div class="chat-area">
-            <div class="chat-header" id="chat-header">Загрузка профиля...</div>
+            <div class="chat-header">
+                <span id="chat-header-text">Загрузка профиля...</span>
+                <button class="sound-toggle" id="sound-toggle" type="button">
+                    <span id="sound-icon">🔊</span> Звук: <span id="sound-status">ВКЛ</span>
+                </button>
+            </div>
+            
+            <div class="reply-hint">💡 Нажмите на любое сообщение, чтобы процитировать его</div>
             
             <div class="messages-container" id="messages-container"></div>
+            
+            <div class="reply-preview" id="reply-preview">
+                <div class="reply-info">
+                    <div class="reply-info-author" id="reply-author">Автор</div>
+                    <div id="reply-text">Текст цитаты</div>
+                </div>
+                <button class="cancel-reply-btn" id="cancel-reply-btn" type="button">×</button>
+            </div>
             
             <form class="input-panel" id="chat-form">
                 <input type="text" id="msg-input" placeholder="Напишите сообщение..." autocomplete="off">
