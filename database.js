@@ -1,41 +1,71 @@
-const sqlite3 = require('sqlite3-offline').verbose();
+const fs = require('fs');
 const path = require('path');
 
-// Создаем или открываем файл базы данных в папке проекта
-const dbPath = path.resolve(__dirname, 'chat.db');
-const db = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-        console.error('Ошибка подключения к базе данных:', err.message);
-    } else {
-        console.log('Подключено к базе данных SQLite (chat.db).');
+const FILE_PATH = path.join(__dirname, 'chat.db.json');
+
+// Проверяем/создаем файл базы данных при старте
+if (!fs.existsSync(FILE_PATH)) {
+    fs.writeFileSync(FILE_PATH, JSON.stringify({ users: [], messages: [] }, null, 2));
+}
+
+console.log("База данных JSON успешно проверена/создана.");
+console.log("Подключено к текстовой базе данных (chat.db.json).");
+
+// Чтение данных из файла
+function readData() {
+    try {
+        const raw = fs.readFileSync(FILE_PATH, 'utf8');
+        return JSON.parse(raw);
+    } catch (e) {
+        return { users: [], messages: [] };
     }
-});
+}
 
-// Инициализация таблиц
-db.serialize(() => {
-    // 1. Создаем таблицу пользователей
-    db.run(`
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            target_lang TEXT DEFAULT 'en'
-        )
-    `);
+// Запись данных в файл
+function writeData(data) {
+    fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2));
+}
 
-    // 2. Создаем таблицу сообщений
-    db.run(`
-        CREATE TABLE IF NOT EXISTS messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            original_text TEXT NOT NULL,
-            source_lang TEXT NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-    `);
-    
-    console.log('Таблицы users и messages успешно проверены/созданы.');
-});
+// Эмулируем методы SQLite, чтобы не переписывать server.js!
+const db = {
+    // Метод INSERT (Регистрация)
+    run: function(query, params, callback) {
+        const data = readData();
+        
+        // Если это регистрация пользователя
+        if (query.includes('INSERT INTO users')) {
+            const [username, passwordHash, targetLang] = params;
+            
+            // Проверка на UNIQUE (уникальный ник)
+            const exists = data.users.some(u => u.username === username);
+            if (exists) {
+                return callback({ message: 'UNIQUE constraint failed' });
+            }
+            
+            const newUser = {
+                id: data.users.length + 1,
+                username,
+                password_hash: passwordHash,
+                target_lang: targetLang
+            };
+            
+            data.users.push(newUser);
+            writeData(data);
+            return callback(null);
+        }
+        callback(null);
+    },
+
+    // Метод SELECT для одного пользователя (Логин)
+    get: function(query, params, callback) {
+        const data = readData();
+        if (query.includes('FROM users WHERE username = ?')) {
+            const username = params[0];
+            const user = data.users.find(u => u.username === username);
+            return callback(null, user || null);
+        }
+        callback(null, null);
+    }
+};
 
 module.exports = db;
