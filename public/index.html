@@ -1,130 +1,241 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Вход в перевод-чат</title>
+    <title>Global Chat - Welcome</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #f4f6f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .auth-container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 320px; }
-        h2 { text-align: center; color: #333; margin-bottom: 20px; }
-        input, select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        button { width: 100%; padding: 10px; background: #007bff; border: none; color: white; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 10px; }
-        button:hover { background: #0056b3; }
-        .toggle-link { text-align: center; margin-top: 15px; font-size: 14px; color: #007bff; cursor: pointer; }
-        .error { color: red; font-size: 14px; text-align: center; margin-bottom: 10px; display: none; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: #0d1117; color: #c9d1d9; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+        
+        .auth-container { background-color: #161b22; border: 1px solid #21262d; border-radius: 8px; width: 100%; max-width: 400px; padding: 30px; position: relative; }
+        
+        /* Переключатель языка интерфейса */
+        .lang-selector-wrapper { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-bottom: 20px; font-size: 13px; color: #8b949e; }
+        .lang-select { background-color: #0d1117; border: 1px solid #30363d; color: #f0f6fc; padding: 6px 10px; border-radius: 6px; outline: none; cursor: pointer; font-size: 13px; }
+        
+        h2 { color: #f0f6fc; text-align: center; margin-bottom: 20px; font-size: 24px; }
+        
+        .tabs { display: flex; margin-bottom: 25px; border-bottom: 1px solid #21262d; }
+        .tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; color: #8b949e; font-weight: bold; border-bottom: 2px solid transparent; transition: 0.2s; }
+        .tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
+        
+        form { display: flex; flex-direction: column; gap: 15px; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        label { font-size: 14px; color: #8b949e; font-weight: 500; }
+        input, select { background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #f0f6fc; padding: 10px 12px; font-size: 15px; outline: none; width: 100%; }
+        input:focus, select:focus { border-color: #58a6ff; }
+        
+        .btn { background-color: #238636; color: #ffffff; border: 1px solid rgba(240,246,252,0.1); border-radius: 6px; padding: 12px; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+        .btn:hover { background-color: #2ea44f; }
+        
+        .error-msg { background-color: rgba(248,81,73,0.15); color: #ff7b72; border: 1px solid rgba(248,81,73,0.4); padding: 10px; border-radius: 6px; font-size: 14px; text-align: center; display: none; }
     </style>
 </head>
 <body>
 
-<div class="auth-container">
-    <h2 id="auth-title">Войти в чат</h2>
-    <div id="error-msg" class="error"></div>
-    
-    <form id="auth-form">
-        <input type="text" id="username" placeholder="Имя пользователя" required>
-        <input type="password" id="password" placeholder="Пароль" required>
-        
-        <div id="lang-selector" style="display: none;">
-            <label for="target_lang" style="font-size: 14px; color: #666;">Язык перевода чата:</label>
-            <select id="target_lang">
-                <option value="ru" selected>Русский (Russian)</option>
-                <option value="en">English (Английский)</option>
-                <option value="uk">Українська (Украинский)</option>
-                <option value="ja">日本語 (Японский)</option>
-                <option value="zh">中文 (Китайский)</option>
-                <option value="es">Español (Испанский)</option>
-                <option value="de">Deutsch (Немецкий)</option>
-                <option value="fr">Français (Французский)</option>
-                <option value="it">Italiano (Итальянский)</option>
-                <option value="pt">Português (Португальский)</option>
-                <option value="pl">Polski (Польский)</option>
-                <option value="tr">Türkçe (Турецкий)</option>
-                <option value="ar">العربية (Арабский)</option>
-                <option value="ko">한국어 (Корейский)</option>
-                <option value="nl">Nederlands (Нидерландский)</option>
-                <option value="sv">Svenska (Шведский)</option>
-                <option value="fi">Suomi (Финский)</option>
-                <option value="no">Norsk (Норвежский)</option>
-                <option value="da">Dansk (Датский)</option>
-                <option value="cs">Čeština (Чешский)</option>
-                <option value="el">Ελληνικά (Греческий)</option>
-                <option value="hi">हिन्दी (Хинди)</option>
+    <div class="auth-container">
+        <div class="lang-selector-wrapper">
+            <span id="ui-lang-label">Interface:</span>
+            <select id="ui-lang-select" class="sound-toggle" style="width: auto; padding: 4px 8px;">
+                <option value="en" selected>English</option>
+                <option value="uk">Українська</option>
+                <option value="ru">Русский</option>
+                <option value="pl">Polski</option>
+                <option value="de">Deutsch</option>
+                <option value="fr">Français</option>
+                <option value="es">Español</option>
+                <option value="it">Italiano</option>
+                <option value="tr">Türkçe</option>
+                <option value="zh">中文</option>
+                <option value="ja">日本語</option>
+                <option value="ko">한국어</option>
+                <option value="ar">العربية</option>
+                <option value="pt">Português</option>
+                <option value="nl">Nederlands</option>
+                <option value="sv">Svenska</option>
+                <option value="no">Norsk</option>
+                <option value="da">Dansk</option>
+                <option value="fi">Suomi</option>
+                <option value="cs">Čeština</option>
+                <option value="hu">Magyar</option>
+                <option value="ro">Română</option>
             </select>
         </div>
+
+        <h2 id="page-title">Sign In</h2>
         
-        <button type="submit" id="submit-btn">Войти</button>
-    </form>
-    
-    <div class="toggle-link" id="toggle-auth">Нет аккаунта? Зарегистрироваться</div>
-</div>
+        <div class="tabs">
+            <div class="tab active" id="tab-login" onclick="switchTab('login')">Login</div>
+            <div class="tab" id="tab-register" onclick="switchTab('register')">Register</div>
+        </div>
 
-<script>
-    const form = document.getElementById('auth-form');
-    const title = document.getElementById('auth-title');
-    const submitBtn = document.getElementById('submit-btn');
-    const toggleLink = document.getElementById('toggle-auth');
-    const langSelector = document.getElementById('lang-selector');
-    const errorMsg = document.getElementById('error-msg');
+        <div class="error-msg" id="error-box"></div>
 
-    let isLoginMode = true;
+        <form id="auth-form">
+            <div class="form-group">
+                <label id="label-username" for="username">Username</label>
+                <input type="text" id="username" required autocomplete="username">
+            </div>
+            
+            <div class="form-group">
+                <label id="label-password" for="password">Password</label>
+                <input type="password" id="password" required autocomplete="current-password">
+            </div>
+            
+            <div class="form-group" id="chat-lang-group" style="display: none;">
+                <label id="label-chat-lang" for="chat-lang">Your Language (for translation)</label>
+                <select id="chat-lang">
+                    <option value="en">English</option>
+                    <option value="uk">Українська</option>
+                    <option value="ru">Русский</option>
+                    <option value="pl">Polski</option>
+                    <option value="de">Deutsch</option>
+                    <option value="fr">Français</option>
+                    <option value="es">Español</option>
+                    <option value="it">Italiano</option>
+                    <option value="tr">Türkçe</option>
+                    <option value="zh">中文</option>
+                    <option value="ja">日本語</option>
+                    <option value="ko">한국어</option>
+                    <option value="ar">العربية</option>
+                    <option value="pt">Português</option>
+                    <option value="nl">Nederlands</option>
+                    <option value="sv">Svenska</option>
+                    <option value="no">Norsk</option>
+                    <option value="da">Dansk</option>
+                    <option value="fi">Suomi</option>
+                    <option value="cs">Čeština</option>
+                    <option value="hu">Magyar</option>
+                    <option value="ro">Română</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="btn" id="submit-btn">Let's Go</button>
+        </form>
+    </div>
 
-    toggleLink.addEventListener('click', () => {
-        isLoginMode = !isLoginMode;
-        if (isLoginMode) {
-            title.innerText = 'Войти в чат';
-            submitBtn.innerText = 'Войти';
-            toggleLink.innerText = 'Нет аккаунта? Зарегистрироваться';
-            langSelector.style.display = 'none';
-        } else {
-            title.innerText = 'Регистрация';
-            submitBtn.innerText = 'Создать аккаунт';
-            toggleLink.innerText = 'Уже есть аккаунт? Войти';
-            langSelector.style.display = 'block';
-        }
-        errorMsg.style.display = 'none';
-    });
+    <script>
+        let currentMode = 'login'; // 'login' или 'register'
 
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        errorMsg.style.display = 'none';
-
-        const data = {
-            username: document.getElementById('username').value,
-            password: document.getElementById('password').value
+        // Словари переводов интерфейса титульной страницы на 22 языка
+        const translations = {
+            en: { titleLogin: "Sign In", titleRegister: "Create Account", tabLogin: "Login", tabRegister: "Register", labelUser: "Username", labelPass: "Password", labelLang: "Your Language (for translation)", btnLogin: "Let's Go", btnRegister: "Register", errFields: "Please fill in all fields" },
+            uk: { titleLogin: "Вхід у чат", titleRegister: "Реєстрація", tabLogin: "Вхід", tabRegister: "Реєстрація", labelUser: "Нікнейм", labelPass: "Пароль", labelLang: "Ваша мова (для перекладу)", btnLogin: "Увійти", btnRegister: "Зареєструватися", errFields: "Будь ласка, заповніть усі поля" },
+            ru: { titleLogin: "Вход в чат", titleRegister: "Регистрация", tabLogin: "Вход", tabRegister: "Регистрация", labelUser: "Никнейм", labelPass: "Пароль", labelLang: "Ваш язык (для перевода)", btnLogin: "Войти", btnRegister: "Зарегистрироваться", errFields: "Пожалуйста, заполните все поля" },
+            pl: { titleLogin: "Zaloguj się", titleRegister: "Zarejestruj się", tabLogin: "Logowanie", tabRegister: "Rejestracja", labelUser: "Nazwa użytkownika", labelPass: "Hasło", labelLang: "Twój język (do tłumaczenia)", btnLogin: "Wejdź", btnRegister: "Zarejestruj", errFields: "Proszę wypełnić wszystkie pola" },
+            de: { titleLogin: "Einloggen", titleRegister: "Konto erstellen", tabLogin: "Login", tabRegister: "Registrieren", labelUser: "Benutzername", labelPass: "Passwort", labelLang: "Ihre Sprache (für Übersetzung)", btnLogin: "Los geht's", btnRegister: "Registrieren", errFields: "Bitte füllen Sie alle Felder aus" },
+            fr: { titleLogin: "Connexion", titleRegister: "Créer un compte", tabLogin: "Connexion", tabRegister: "S'inscrire", labelUser: "Nom d'utilisateur", labelPass: "Mot de passe", labelLang: "Votre langue (pour traduction)", btnLogin: "C'est parti", btnRegister: "S'inscrire", errFields: "Veuillez remplir tous les champs" },
+            es: { titleLogin: "Iniciar Sesión", titleRegister: "Crear Cuenta", tabLogin: "Login", tabRegister: "Registro", labelUser: "Usuario", labelPass: "Contraseña", labelLang: "Tu idioma (para traducción)", btnLogin: "Vamos", btnRegister: "Registrarse", errFields: "Por favor, complete todos los campos" },
+            it: { titleLogin: "Accedi", titleRegister: "Crea Account", tabLogin: "Login", tabRegister: "Registrati", labelUser: "Nome utente", labelPass: "Password", labelLang: "La tua lingua (per traduzione)", btnLogin: "Andiamo", btnRegister: "Registrati", errFields: "Si prega di compilare tutti i campi" },
+            tr: { titleLogin: "Giriş Yap", titleRegister: "Hesap Oluştur", tabLogin: "Giriş", tabRegister: "Kayıt Ol", labelUser: "Kullanıcı Adı", labelPass: "Şifre", labelLang: "Diliniz (çeviri için)", btnLogin: "Hadi Başlayalım", btnRegister: "Kayıt Ol", errFields: "Lütfen tüm alanları doldurun" },
+            zh: { titleLogin: "登录", titleRegister: "Register", tabLogin: "登录", tabRegister: "注册", labelUser: "用户名", labelPass: "密码", labelLang: "您的语言（用于翻译）", btnLogin: "登入", btnRegister: "注册", errFields: "请填写所有字段" },
+            ja: { titleLogin: "ログイン", titleRegister: "アカウント作成", tabLogin: "ログイン", tabRegister: "登録", labelUser: "ユーザー名", labelPass: "パスワード", labelLang: "あなたの言語（翻訳用）", btnLogin: "入る", btnRegister: "登録する", errFields: "すべての項目を入力してください" },
+            ko: { titleLogin: "로그인", titleRegister: "계정 만들기", tabLogin: "로그인", tabRegister: "회원가입", labelUser: "사용자 이름", labelPass: "비밀번호", labelLang: "귀하의 언어 (번역용)", btnLogin: "시작하기", btnRegister: "회원가입", errFields: "모든 필드를 채워주세요" },
+            ar: { titleLogin: "تسجيل الدخول", titleRegister: "إنشاء حساب", tabLogin: "دخول", tabRegister: "تسجيل", labelUser: "اسم المستخدم", labelPass: "كلمة المرور", labelLang: "لغتك (للترجمة)", btnLogin: "لنبدأ", btnRegister: "تسجيل الحساب", errFields: "يرجى ملء جميع الحقول" },
+            pt: { titleLogin: "Entrar", titleRegister: "Criar Conta", tabLogin: "Login", tabRegister: "Cadastrar", labelUser: "Usuário", labelPass: "Senha", labelLang: "Seu idioma (para tradução)", btnLogin: "Vamos", btnRegister: "Cadastrar", errFields: "Por favor, preencha todos os campos" },
+            nl: { titleLogin: "Inloggen", titleRegister: "Account aanmaken", tabLogin: "Login", tabRegister: "Registreren", labelUser: "Gebruikersnaam", labelPass: "Wachtwoord", labelLang: "Uw taal (voor vertaling)", btnLogin: "Aan de slag", btnRegister: "Registreren", errFields: "Vul alstublieft alle velden in" },
+            sv: { titleLogin: "Logga in", titleRegister: "Skapa konto", tabLogin: "Logga in", tabRegister: "Registrera", labelUser: "Användarnamn", labelPass: "Lösenord", labelLang: "Ditt språk (för översättning)", btnLogin: "Nu kör vi", btnRegister: "Registrera", errFields: "Vänligen fyll i alla fält" },
+            no: { titleLogin: "Logg inn", titleRegister: "Opprett konto", tabLogin: "Logg inn", tabRegister: "Registrer", labelUser: "Brukernavn", labelPass: "Passord", labelLang: "Ditt språk (for oversettelse)", btnLogin: "La oss gå", btnRegister: "Registrer", errFields: "Vennligst fyll ut alle felt" },
+            da: { titleLogin: "Log ind", titleRegister: "Opret konto", tabLogin: "Log ind", tabRegister: "Registrer", labelUser: "Brugernavn", labelPass: "Adgangskode", labelLang: "Dit sprog (til oversettelse)", btnLogin: "Lad os gå", btnRegister: "Registrer", errFields: "Venligst udfyld alle felter" },
+            fi: { titleLogin: "Kirjaudu sisään", titleRegister: "Luo tili", tabLogin: "Kirjaudu", tabRegister: "Rekisteröidy", labelUser: "Käyttäjätunnus", labelPass: "Salasana", labelLang: "Kielesi (käännöstä varten)", btnLogin: "Aloitetaan", btnRegister: "Rekisteröidy", errFields: "Ole hyvä ja täytä kaikki kentät" },
+            cs: { titleLogin: "Přihlásit se", titleRegister: "Vytvořit účet", tabLogin: "Přihlášení", tabRegister: "Registrace", labelUser: "Uživatelské jméno", labelPass: "Heslo", labelLang: "Váš jazyk (pro překlad)", btnLogin: "Jdeme na to", btnRegister: "Registrovat", errFields: "Prosím vyplňte všechna pole" },
+            hu: { titleLogin: "Bejelentkezés", titleRegister: "Fiók létrehozása", tabLogin: "Belépés", tabRegister: "Regisztráció", labelUser: "Felhasználónév", labelPass: "Jelszó", labelLang: "Az Ön nyelve (fordításhoz)", btnLogin: "Gyerünk", btnRegister: "Regisztráció", errFields: "Kérjük, töltsön ki minden mezőt" },
+            ro: { titleLogin: "Autentificare", titleRegister: "Creare cont", tabLogin: "Login", tabRegister: "Înregistrare", labelUser: "Nume utilizator", labelPass: "Parolă", labelLang: "Limba ta (pentru traducere)", btnLogin: "Să începem", btnRegister: "Înregistrare", errFields: "Vă rugăm să completați toate câmpurile" }
         };
 
-        if (!isLoginMode) {
-            data.target_lang = document.getElementById('target_lang').value;
-        }
+        const uiLangSelect = document.getElementById('ui-lang-select');
+        const errorBox = document.getElementById('error-box');
 
-        const url = isLoginMode ? '/login' : '/register';
+        // Функция обновления текстов на странице в зависимости от выбранного языка интерфейса
+        function updateUI() {
+            const lang = uiLangSelect.value;
+            const t = translations[lang] || translations.en;
 
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
+            document.getElementById('tab-login').innerText = t.tabLogin;
+            document.getElementById('tab-register').innerText = t.tabRegister;
+            document.getElementById('label-username').innerText = t.labelUser;
+            document.getElementById('label-password').innerText = t.labelPass;
+            document.getElementById('label-chat-lang').innerText = t.labelLang;
 
-            const result = await response.json();
-
-            if (!response.ok) {
-                errorMsg.innerText = result.error || 'Что-то пошло не так';
-                errorMsg.style.display = 'block';
+            if (currentMode === 'login') {
+                document.getElementById('page-title').innerText = t.titleLogin;
+                document.getElementById('submit-btn').innerText = t.btnLogin;
             } else {
-                if (isLoginMode) {
-                    window.location.href = result.redirect;
-                } else {
-                    alert('Регистрация успешна! Теперь войдите в аккаунт.');
-                    toggleLink.click();
-                }
+                document.getElementById('page-title').innerText = t.titleRegister;
+                document.getElementById('submit-btn').innerText = t.btnRegister;
             }
-        } catch (err) {
-            errorMsg.innerText = 'Ошибка соединения с сервером';
-            errorMsg.style.display = 'block';
         }
-    });
-</script>
+
+        // Слушатель смены языка интерфейса
+        uiLangSelect.addEventListener('change', updateUI);
+
+        // Переключение вкладок Вход / Регистрация
+        function switchTab(mode) {
+            currentMode = mode;
+            errorBox.style.display = 'none';
+            
+            document.getElementById('tab-login').classList.toggle('active', mode === 'login');
+            document.getElementById('tab-register').classList.toggle('active', mode === 'register');
+            
+            // Показываем/скрываем выбор языка для перевода чата
+            document.getElementById('chat-lang-group').style.display = mode === 'register' ? 'flex' : 'none';
+            
+            updateUI();
+        }
+
+        // Отправка формы (Логин или Регистрация)
+        document.getElementById('auth-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            errorBox.style.display = 'none';
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const target_lang = document.getElementById('chat-lang').value;
+            const currentLang = uiLangSelect.value;
+
+            if (!username || !password) {
+                errorBox.innerText = translations[currentLang].errFields;
+                errorBox.style.display = 'block';
+                return;
+            }
+
+            const url = currentMode === 'login' ? '/login' : '/register';
+            const payload = currentMode === 'login' 
+                ? { username, password } 
+                : { username, password, target_lang };
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    // Если сервер вернул ошибку, выводим её как есть
+                    errorBox.innerText = data.error || 'Error';
+                    errorBox.style.display = 'block';
+                } else {
+                    if (currentMode === 'login') {
+                        // Перенаправляем в чат
+                        window.location.href = data.redirect;
+                    } else {
+                        // После успешной регистрации автоматически переключаем на вкладку входа
+                        switchTab('login');
+                        alert(currentLang === 'uk' ? 'Реєстрація успішна! Тепер увійдіть.' : currentLang === 'ru' ? 'Регистрация успешна! Теперь войдите.' : 'Registration successful! Please log in.');
+                    }
+                }
+            } catch (err) {
+                errorBox.innerText = 'Server connection error';
+                errorBox.style.display = 'block';
+            }
+        });
+
+        // Инициализируем тексты при первом запуске
+        updateUI();
+    </script>
 </body>
 </html>
