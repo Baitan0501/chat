@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мультиязычный чат</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; background: #eef2f5; }
+        header { background: #333; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; height: 50px; }
+        header a { color: #ff4d4d; text-decoration: none; font-weight: bold; }
+        
+        /* Основная рабочая область */
+        .main-wrapper { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 50px); }
+        
+        /* Боковая панель пользователей онлайн */
+        .sidebar { width: 200px; background: #2c3e50; color: white; display: flex; flex-direction: column; border-right: 1px solid #1a252f; }
+        .sidebar-title { background: #1a252f; padding: 12px; font-weight: bold; text-align: center; font-size: 14px; }
+        .users-list { flex: 1; padding: 10px; overflow-y: auto; list-style: none; margin: 0; padding-left: 5px; }
+        .user-item { padding: 8px 12px; border-radius: 4px; margin-bottom: 5px; background: #34495e; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+        .user-item::before { content: ""; display: inline-block; width: 8px; height: 8px; background: #2ecc71; border-radius: 50%; }
+
+        /* Контейнер двух окон чата */
+        .chat-container { display: flex; flex: 1; background: white; }
+        .window { width: 50%; display: flex; flex-direction: column; background: white; }
+        .left-window { border-right: 2px solid #ddd; }
+        .right-window { background: #f9fbfd; }
+        
+        .window-title { background: #f1f1f1; padding: 10px; font-weight: bold; border-bottom: 1px solid #ddd; text-align: center; color: #555; }
+        .messages-display { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        
+        .input-area { padding: 15px; border-top: 1px solid #ddd; display: flex; gap: 10px; background: #fff; }
+        .input-area input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; }
+        .input-area button { padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        .input-area button:hover { background: #218838; }
+
+        .msg { padding: 8px 12px; border-radius: 6px; background: #e2f0fd; max-width: 80%; width: fit-content; word-break: break-word; }
+        .msg.my { background: #d4edda; align-self: flex-end; }
+        .msg-author { font-size: 11px; color: #777; margin-bottom: 3px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div>Вы вошли как: <span id="my-username">...</span> (Язык перевода: <span id="my-lang">...</span>)</div>
+    <a href="/logout">Выйти</a>
+</header>
+
+<div class="main-wrapper">
+    <div class="sidebar">
+        <div class="sidebar-title">В СЕТИ</div>
+        <ul class="users-list" id="users-online-list">
+            </ul>
+    </div>
+
+    <div class="chat-container">
+        <div class="window left-window">
+            <div class="window-title">Оригинальный текст (Ввод)</div>
+            <div class="messages-display" id="left-messages"></div>
+            <form class="input-area" id="message-form">
+                <input type="text" id="message-input" placeholder="Напишите сообщение на любом языке..." autocomplete="off" required>
+                <button type="submit">Отправить</button>
+            </form>
+        </div>
+
+        <div class="window right-window">
+            <div class="window-title">Перевод на ваш язык</div>
+            <div class="messages-display" id="right-messages"></div>
+        </div>
+    </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    const socket = io();
+
+    const leftMessages = document.getElementById('left-messages');
+    const rightMessages = document.getElementById('right-messages');
+    const messageForm = document.getElementById('message-form');
+    const messageInput = document.getElementById('message-input');
+    const usersOnlineList = document.getElementById('users-online-list');
+    
+    let currentUsername = '';
+    let currentLang = 'en';
+
+    // 1. Проверяем авторизацию
+    async function checkAuth() {
+        try {
+            const response = await fetch('/api/me');
+            if (!response.ok) {
+                window.location.href = '/index.html';
+            } else {
+                const user = await response.json();
+                currentUsername = user.username;
+                currentLang = user.targetLang;
+                
+                document.getElementById('my-username').innerText = user.username;
+                document.getElementById('my-lang').innerText = user.targetLang.toUpperCase();
+
+                // Инициализируем сокет на бэкенде
+                socket.emit('init_user', {
+                    username: currentUsername,
+                    targetLang: currentLang
+                });
+            }
+        } catch (err) {
+            window.location.href = '/index.html';
+        }
+    }
+    checkAuth();
+
+    // 2. Отправка сообщения
+    messageForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const text = messageInput.value.trim();
+        if (text) {
+            socket.emit('chat_message', text);
+            messageInput.value = '';
+        }
+    });
+
+    // 3. Получение сообщений и скролл
+    socket.on('broadcast_message', (data) => {
+        const isMyMessage = data.author === currentUsername;
+        const myClass = isMyMessage ? 'my' : '';
+
+        const leftMsgHtml = `
+            <div class="msg ${myClass}">
+                <div class="msg-author">${data.author}</div>
+                <div>${data.original}</div>
+            </div>
+        `;
+        leftMessages.innerHTML += leftMsgHtml;
+        leftMessages.scrollTop = leftMessages.scrollHeight;
+
+        const rightMsgHtml = `
+            <div class="msg ${myClass}">
+                <div class="msg-author">${data.author}</div>
+                <div>${data.translated}</div>
+            </div>
+        `;
+        rightMessages.innerHTML += rightMsgHtml;
+        rightMessages.scrollTop = rightMessages.scrollHeight;
+    });
+
+    // 4. Обновление списка пользователей онлайн
+    socket.on('update_users', (usersArray) => {
+        usersOnlineList.innerHTML = ''; // Очищаем старый список
+        usersArray.forEach(username => {
+            const li = document.createElement('li');
+            li.className = 'user-item';
+            li.innerText = username;
+            usersOnlineList.appendChild(li);
+        });
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход в перевод-чат</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f6f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .auth-container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 320px; }
+        h2 { text-align: center; color: #333; margin-bottom: 20px; }
+        input, select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #007bff; border: none; color: white; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+        button:hover { background: #0056b3; }
+        .toggle-link { text-align: center; margin-top: 15px; font-size: 14px; color: #007bff; cursor: pointer; }
+        .error { color: red; font-size: 14px; text-align: center; margin-bottom: 10px; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="auth-container">
+    <h2 id="auth-title">Войти в чат</h2>
+    <div id="error-msg" class="error"></div>
+    
+    <form id="auth-form">
+        <input type="text" id="username" placeholder="Имя пользователя" required>
+        <input type="password" id="password" placeholder="Пароль" required>
+        
+        <div id="lang-selector" style="display: none;">
+            <label for="target_lang" style="font-size: 14px; color: #666;">Язык перевода чата:</label>
+            <select id="target_lang">
+                <option value="ru" selected>Русский (Russian)</option>
+                <option value="en">English (Английский)</option>
+                <option value="uk">Українська (Украинский)</option>
+                <option value="ja">日本語 (Японский)</option>
+                <option value="zh">中文 (Китайский)</option>
+                <option value="es">Español (Испанский)</option>
+                <option value="de">Deutsch (Немецкий)</option>
+                <option value="fr">Français (Французский)</option>
+                <option value="it">Italiano (Итальянский)</option>
+                <option value="pt">Português (Португальский)</option>
+                <option value="pl">Polski (Польский)</option>
+                <option value="tr">Türkçe (Турецкий)</option>
+                <option value="ar">العربية (Арабский)</option>
+                <option value="ko">한국어 (Корейский)</option>
+                <option value="nl">Nederlands (Нидерландский)</option>
+                <option value="sv">Svenska (Шведский)</option>
+                <option value="fi">Suomi (Финский)</option>
+                <option value="no">Norsk (Норвежский)</option>
+                <option value="da">Dansk (Датский)</option>
+                <option value="cs">Čeština (Чешский)</option>
+                <option value="el">Ελληνικά (Греческий)</option>
+                <option value="hi">हिन्दी (Хинди)</option>
+            </select>
+        </div>
+        
+        <button type="submit" id="submit-btn">Войти</button>
+    </form>
+    
+    <div class="toggle-link" id="toggle-auth">Нет аккаунта? Зарегистрироваться</div>
+</div>
+
+<script>
+    const form = document.getElementById('auth-form');
+    const title = document.getElementById('auth-title');
+    const submitBtn = document.getElementById('submit-btn');
+    const toggleLink = document.getElementById('toggle-auth');
+    const langSelector = document.getElementById('lang-selector');
+    const errorMsg = document.getElementById('error-msg');
+
+    let isLoginMode = true;
+
+    toggleLink.addEventListener('click', () => {
+        isLoginMode = !isLoginMode;
+        if (isLoginMode) {
+            title.innerText = 'Войти в чат';
+            submitBtn.innerText = 'Войти';
+            toggleLink.innerText = 'Нет аккаунта? Зарегистрироваться';
+            langSelector.style.display = 'none';
+        } else {
+            title.innerText = 'Регистрация';
+            submitBtn.innerText = 'Создать аккаунт';
+            toggleLink.innerText = 'Уже есть аккаунт? Войти';
+            langSelector.style.display = 'block';
+        }
+        errorMsg.style.display = 'none';
+    });
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        errorMsg.style.display = 'none';
+
+        const data = {
+            username: document.getElementById('username').value,
+            password: document.getElementById('password').value
+        };
+
+        if (!isLoginMode) {
+            data.target_lang = document.getElementById('target_lang').value;
+        }
+
+        const url = isLoginMode ? '/login' : '/register';
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                errorMsg.innerText = result.error || 'Что-то пошло не так';
+                errorMsg.style.display = 'block';
+            } else {
+                if (isLoginMode) {
+                    window.location.href = result.redirect;
+                } else {
+                    alert('Регистрация успешна! Теперь войдите в аккаунт.');
+                    toggleLink.click();
+                }
+            }
+        } catch (err) {
+            errorMsg.innerText = 'Ошибка соединения с сервером';
+            errorMsg.style.display = 'block';
+        }
+    });
+</script>
+</body>
+</html>
