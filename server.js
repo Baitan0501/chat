@@ -27,7 +27,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// --- АВТОРИЗАЦИЯ ---
+// --- АВТОРИЗАЦИЯ через Firebase ---
 
 app.post('/register', async (req, res) => {
     const { username, password, target_lang } = req.body;
@@ -38,6 +38,7 @@ app.post('/register', async (req, res) => {
         const saltRounds = 10;
         const passwordHash = await bcrypt.hash(password, saltRounds);
         const query = `INSERT INTO users (username, password_hash, target_lang) VALUES (?, ?, ?)`;
+        
         db.run(query, [username, passwordHash, target_lang || 'en'], function(err) {
             if (err) {
                 if (err.message && err.message.includes('UNIQUE constraint failed')) {
@@ -65,7 +66,7 @@ app.post('/login', (req, res) => {
         const match = await bcrypt.compare(password, user.password_hash);
         if (!match) return res.status(400).json({ error: 'Неверный ник или пароль' });
 
-        req.session.userId = user.id;
+        req.session.userId = user.username;
         req.session.username = user.username;
         req.session.targetLang = user.target_lang;
 
@@ -88,13 +89,13 @@ app.get('/logout', (req, res) => {
     });
 });
 
-// --- ЧАТ С СОХРАНЕНИЕМ ИСТОРИИ ---
-
+// --- ВРЕМЕННАЯ ИСТОРИЯ В ПАМЯТИ СЕРВЕРА ---
+const serverMessagesHistory = [];
 const onlineUsers = {};
 
 io.on('connection', (socket) => {
     
-    socket.on('init_user', (data) => {
+    socket.on('init_user', async (data) => {
         onlineUsers[socket.id] = {
             username: data.username,
             targetLang: data.targetLang || 'en'
@@ -102,42 +103,34 @@ io.on('connection', (socket) => {
         socket.join(`lang_${data.targetLang}`);
         console.log(`[Чат] ${data.username} вошел. Язык: ${data.targetLang.toUpperCase()}`);
         
-        // Отправляем новому пользователю историю последних сообщений
-        db.all("SELECT * FROM messages", [], async (err, rows) => {
-            if (err || !rows) return;
+        // Отправляем новому пользователю историю сообщений из памяти сервера
+        for (let historyMsg of serverMessagesHistory) {
+            let textToSend = historyMsg.text;
             
-            for (let historyMsg of rows) {
-                let textToSend = historyMsg.text;
-                
-                // Переводим историю под язык зашедшего юзера, если автор писал на другом языке
-                // (Для простоты храним в БД оригинал, а при загрузке истории переводим на лету)
-                // Но чтобы не спамить API, переводим только если это чужое сообщение
-                if (historyMsg.author !== data.username) {
-                    try {
-                        // Чистим теги цитат перед переводом, если они есть
-                        let cleanText = historyMsg.text;
-                        let quotePrefix = "";
-                        if (cleanText.startsWith('[QUOTE_REPLY]')) {
-                            const endTag = cleanText.indexOf('[/QUOTE_REPLY]');
-                            if (endTag !== -1) {
-                                quotePrefix = cleanText.substring(0, endTag + 14);
-                                cleanText = cleanText.substring(endTag + 14);
-                            }
+            if (historyMsg.author !== data.username) {
+                try {
+                    let cleanText = historyMsg.text;
+                    let quotePrefix = "";
+                    if (cleanText.startsWith('[QUOTE_REPLY]')) {
+                        const endTag = cleanText.indexOf('[/QUOTE_REPLY]');
+                        if (endTag !== -1) {
+                            quotePrefix = cleanText.substring(0, endTag + 14);
+                            cleanText = cleanText.substring(endTag + 14);
                         }
-                        
-                        const res = await translate(cleanText, { to: data.targetLang });
-                        textToSend = quotePrefix + res.text;
-                    } catch (e) {
-                        // Если перевод упал — отдаем как есть
                     }
+                    
+                    const res = await translate(cleanText, { to: data.targetLang });
+                    textToSend = quotePrefix + res.text;
+                } catch (e) {
+                    // Ошибки перевода игнорируем
                 }
-                
-                socket.emit('broadcast_message', {
-                    author: historyMsg.author,
-                    text: textToSend
-                });
             }
-        });
+            
+            socket.emit('broadcast_message', {
+                author: historyMsg.author,
+                text: textToSend
+            });
+        }
 
         updateOnlineUsersList();
     });
@@ -146,14 +139,17 @@ io.on('connection', (socket) => {
         const currentUser = onlineUsers[socket.id];
         if (!currentUser) return;
 
-        // Сохраняем оригинальное сообщение в нашу JSON базу данных
-        db.run("INSERT INTO messages (author, text, timestamp) VALUES (?, ?, ?)", [
-            currentUser.username,
-            msgText,
-            Date.now()
-        ], (err) => {
-            if (err) console.error("Ошибка сохранения сообщения:", err);
+        // Сохраняем сообщение во временный массив в оперативной памяти
+        serverMessagesHistory.push({
+            author: currentUser.username,
+            text: msgText,
+            timestamp: Date.now()
         });
+
+        // Держим лимит в 1000 сообщений в памяти
+        if (serverMessagesHistory.length > 1000) {
+            serverMessagesHistory.shift();
+        }
 
         const activeLanguages = new Set(Object.values(onlineUsers).map(u => u.targetLang));
 
@@ -162,7 +158,6 @@ io.on('connection', (socket) => {
                 let translatedText = msgText;
                 
                 if (lang !== currentUser.targetLang) {
-                    // Если сообщение содержит цитату, переводим только основной текст ответа
                     let cleanText = msgText;
                     let quotePrefix = "";
                     if (msgText.startsWith('[QUOTE_REPLY]')) {
@@ -206,6 +201,6 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000; 
 server.listen(PORT, () => {
     console.log(`\n==================================================`);
-    console.log(`  СЕРВЕР ОБНОВЛЕН И ЗАПУЩЕН!`);
+    console.log(`  СЕРВЕР ЗАПУЩЕН С ПОДДЕРЖКОЙ FIREBASE!`);
     console.log(`==================================================\n`);
 });
