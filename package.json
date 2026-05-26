@@ -3,6 +3,7 @@
     "bcrypt": "^6.0.0",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
+    "firebase-admin": "^13.10.0",
     "google-translate-api-x": "^10.7.2",
     "socket.io": "^4.8.3",
     "sqlite3-offline": "^4.3.1"
